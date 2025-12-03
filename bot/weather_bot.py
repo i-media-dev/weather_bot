@@ -61,7 +61,7 @@ class WeatherAlertBot:
         bot: TeleBot,
         robot: str,
         chat_id: str,
-        robot_folder: str = 'robots'
+        robot_folder: str = 'robot'
     ) -> None:
         """
         Метод отправки стикера с роботом в бота.
