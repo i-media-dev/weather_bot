@@ -1,0 +1,1 @@
+YESTERDAY_TEMP = -30

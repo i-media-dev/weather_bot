@@ -7,6 +7,8 @@ from bot.constants import (COLD_ROBOT, HOT_ROBOT, ICE_ROBOT, MAX_TEMPERATURE,
                            MIN_TEMPERATURE, ROBOTS_FOR_WEATHER,
                            TRIGGER_SUB_STRINGS)
 from bot.logging_config import setup_logging
+from pathlib import Path
+from bot.yesterday_temperature import YESTERDAY_TEMP
 
 load_dotenv()
 
@@ -17,8 +19,43 @@ class WeatherAlertBot:
 
     def __init__(self, token: str, chat_id: str):
         self.chat_id = chat_id
-        self.yesterday_temp = float()
         self.bot = TeleBot(token)
+
+    def _make_file(self, filename: str) -> Path:
+        """
+        Защищенный метод, создает файл, если его нет.
+
+        :param filename: название файла, который нужно создать.
+        :type filename: str
+        :return: возвращает путь к файлу.
+        :rtype: Path
+        """
+        try:
+            file_path = Path(__file__).parent / filename
+            file_path.touch(exist_ok=True)
+            return file_path
+        except Exception as error:
+            logging.error('Не удалось создать директорию по причине %s', error)
+            raise
+
+    def _save_temperature(self, temperature: float):
+        """
+        Защищенный метод, сохраняет температуру в файл.
+
+        :param temperature: температура, полученная из API
+        :type temperature: float
+        """
+        try:
+            file_path = self._make_file('yesterday_temperature.py')
+            file_content = f'YESTERDAY_TEMP = {temperature}\n'
+            with open(file_path, 'w', encoding='utf-8') as f:
+                f.write(file_content)
+            logging.info('Вчерашняя температура обновлена %s', temperature)
+        except Exception as error:
+            logging.error(
+                'Неожиданная ошибка при сохранении температуры: %s',
+                error
+            )
 
     def get_robot(
         self,
@@ -27,6 +64,19 @@ class WeatherAlertBot:
         chat_id: str,
         robot_folder: str = 'robots'
     ) -> None:
+        """
+        Метод отправки стикера с роботов в бота.
+
+        :param bot: Объект бота
+        :type bot: TeleBot
+        :param robot: Название файла с роботом
+        :type robot: str
+        :param chat_id: ID чата или группы для отправки сообщения
+        :type chat_id: str
+        :param robot_folder: Директория расположения файла
+        с изображением робота.
+        :type robot_folder: str
+        """
         try:
             with open(f'{robot_folder}/{robot}', 'rb') as photo:
                 bot.send_sticker(chat_id, photo)
@@ -39,6 +89,16 @@ class WeatherAlertBot:
         chat_id: str,
         message_str: str
     ) -> None:
+        """
+        Метод для отправки сообщений в бота.
+
+        :param bot: Объект бота
+        :type bot: TeleBot
+        :param chat_id: ID чата или группы для отправки сообщения
+        :type chat_id: str
+        :param message_str: Текст сообщения
+        :type message_str: str
+        """
         try:
             bot.send_message(
                 chat_id=chat_id,
@@ -50,6 +110,17 @@ class WeatherAlertBot:
             raise
 
     def _message_constructor(self, weather: str, temperature: float) -> tuple:
+        """
+        Защищенный метод, составляет сообщение для
+        бота на основе полученных данных из API.
+
+        :param weather: Описание температуры по коду, полученному из API
+        :type weather: str
+        :param temperature: температура, полученная из API
+        :type temperature: float
+        :return: Возвращает строку с сообщением для бота
+        :rtype: tuple[Any, ...]
+        """
         robot = ''
         message_parts = []
         weather_triggered = False
@@ -80,14 +151,14 @@ class WeatherAlertBot:
 
         message_parts.append(temperature_message)
 
-        if not weather_triggered and self.yesterday_temp:
-            if self.yesterday_temp > 0 and temperature < 0:
-                change_msg = (
+        if not weather_triggered and YESTERDAY_TEMP:
+            if YESTERDAY_TEMP > 0 and temperature < 0:
+                change_message = (
                     f'Наблюдаю резкое снижение температуры с '
-                    f'{self.yesterday_temp}°C до {temperature}°C. '
+                    f'{YESTERDAY_TEMP}°C до {temperature}°C. '
                     'Вероятен гололед! 🧊🧊🧊'
                 )
-                message_parts.append(change_msg)
+                message_parts.append(change_message)
                 robot = ICE_ROBOT
 
         message_parts.append(
@@ -100,6 +171,14 @@ class WeatherAlertBot:
         return robot, final_message
 
     def bot_reaction(self, temperature: float | str, weather: str) -> None:
+        """
+        Метод присылает реакцию на погоду в телеграмм.
+
+        :param temperature: температура, полученная из API
+        :type temperature: float | str
+        :param weather: Описание температуры по коду, полученному из API
+        :type weather: str
+        """
         final_message = ''
         robot = ''
         try:
@@ -110,6 +189,7 @@ class WeatherAlertBot:
                 weather,
                 temperature
             )
+            self._save_temperature(temperature)
             if robot and final_message:
                 self.get_robot(self.bot, robot, self.chat_id)
                 self.send_message_str(self.bot, self.chat_id, final_message)
