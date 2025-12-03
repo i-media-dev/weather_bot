@@ -20,7 +20,7 @@ def main():
 
     temperature, weather = weather_client.get_weather()
     weather_bot.bot_reaction(temperature, weather)
-    # weather_bot.bot_reaction(-30, 'слабая ледяная морось 🌧️❄️')
+    # weather_bot.bot_reaction(-10, 'туман 🌫️')
 
 
 if __name__ == '__main__':

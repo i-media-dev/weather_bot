@@ -32,10 +32,9 @@ class WeatherAlertBot:
         """
         try:
             file_path = Path(__file__).parent / filename
-            file_path.touch(exist_ok=True)
             return file_path
         except Exception as error:
-            logging.error('Не удалось создать директорию по причине %s', error)
+            logging.error('Не удалось создать файл по причине %s', error)
             raise
 
     def _save_temperature(self, temperature: float):
@@ -65,7 +64,7 @@ class WeatherAlertBot:
         robot_folder: str = 'robots'
     ) -> None:
         """
-        Метод отправки стикера с роботов в бота.
+        Метод отправки стикера с роботом в бота.
 
         :param bot: Объект бота
         :type bot: TeleBot
@@ -119,7 +118,8 @@ class WeatherAlertBot:
         :param temperature: температура, полученная из API
         :type temperature: float
         :return: Возвращает строку с сообщением для бота
-        :rtype: tuple[Any, ...]
+        и название файла с нужным роботом
+        :rtype: tuple[str, str]
         """
         robot = ''
         message_parts = []
